@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title></title>
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head>
+  <body>
+    
+    <script src="/gpu.js"></script>
+    <script>
+        const gpu = new GPU();
+        function imageToArray(image) {
+          const kernel = gpu.createKernel(function(image) {
+            const pixel = image[this.thread.y][this.thread.x];
+            this.color(pixel.r, pixel.g, pixel.b, pixel.a);
+          }, {
+            output: [image.width, image.height],
+            graphical: true,
+            pipeline: true,
+          });
+          kernel(image);
+          const result = kernel.getPixels(true);
+          kernel.destroy();
+          return result;
+        }
+        const kernel = function(data) {
+          let x = this.thread.x, y = this.thread.y;
+          const n = 4 * (x + (this.constants.w * y));
+          this.color(data[n]/256, data[n+1]/256,data[n+2]/256,1);
+        };
+
+        const image = new Image();
+        image.src = '/dash.svg';
+        image.onload = () => {
+          const array = imageToArray(image);
+          const render = (new GPU({mode: "gpu"}))
+            .createKernel(kernel)
+            .setConstants({ w: image.width, h: image.height})
+            .setOutput([image.width, image.height])
+            .setGraphical(true);
+          const canvas = render.canvas;
+          document.body.appendChild(canvas);
+          
+          function callRender() {
+            render(array);
+          }
+          callRender();
+        };
+        
+    </script>
+
+  </body>
+</html>
